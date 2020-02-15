@@ -1,0 +1,112 @@
+import zipfile
+import re, glob, os, math
+import pandas as pd
+import numpy as np
+
+def get_txt_file():
+    '''Retrieve file '''
+    txt_files=[]
+    zip_ref = zipfile.ZipFile('Anio201810.zip','r')
+    paths = zip_ref.namelist()
+    for path in paths:
+        pattern = re.compile(r'\b.txt\b')
+        reTXT = pattern.search(path)
+        if reTXT is not None:
+            file=zip_ref.extract(path)
+            txt_files.append(file)    
+    return txt_files
+
+def get_csv_file():
+    '''Retrieve file '''
+    csv_files=[]
+    zip_ref = zipfile.ZipFile('Anio201810.zip','r')
+    paths = zip_ref.namelist()
+    for path in paths:
+        pattern = re.compile(r'\b.csv\b')
+        reCSV = pattern.search(path)
+        if reCSV is not None:
+            file=zip_ref.extract(path)
+            csv_files.append(file)    
+    return csv_files
+
+def get_xml_file():
+    '''Retrieve file '''
+    xml_files=[]
+    zip_ref = zipfile.ZipFile('Anio201810.zip','r')
+    paths = zip_ref.namelist()
+    for path in paths:
+        pattern = re.compile(r'\b.xml\b')
+        reXML = pattern.search(path)
+        if reXML is not None:
+            file=zip_ref.extract(path)
+            xml_files.append(file)    
+    return xml_files
+    
+    def processing_data():
+    '''Concatenate dataframe and sort'''
+    
+    df1=pd.DataFrame()
+    csv_file=get_csv_file()
+    for path in csv_file:
+        df = pd.read_csv(path, delimiter=";")
+        if not df1.empty:
+            df=pd.concat([df, df1])
+        df1=df
+    df = df1.sort_values(['MES','DIA'], ascending=(True,True))   
+    return df
+    
+def check_processing_data():
+    
+    array_rows=[]
+    csv_file=get_csv_file()
+    total_df_rows=processing_data()
+    total_df_rows=total_df_rows.shape[0]
+    '''Sum row files'''
+    for path in csv_file:
+        dataframe = pd.read_csv(path, delimiter=";")
+        rows=dataframe.shape[0]
+        array_rows=array_rows+[rows]
+    total_array_rows=np.sum(array_rows)
+    '''Compare row numbers df and row files'''
+    if total_df_rows==total_array_rows:
+        print('Satisfactory process')
+    else:
+        print('Something went wrong')
+    
+check_processing_data()
+
+def filtered_data():
+    '''Filtering NO2 Data'''
+    pattern = "(_8_)"
+    filtered = df['PUNTO_MUESTREO'].str.extract(pattern)
+    result = pd.concat([df, filtered], axis=1, sort=False)
+    df_NO2=result[result[0]=='_8_']
+    '''Filtering NO2 Data'''
+    valid=['V01','V02','V03','V04','V05','V06', 'V07','V08','V09',
+           'V10','V11', 'V12', 'V13', 'V14','V15','V16','V17','V18',
+           'V19','V20','V21','V22','V23','V24']
+    for v in valid:
+        dataframe=df_NO2[df_NO2[v]=='V']
+        
+    return dataframe
+def check_values_null():
+    df = processing_data()
+    df_null=df.isnull().values.ravel().sum()
+    if df_null==0:
+    
+        print('There are not Null values')
+    else:
+        print(f'There are {df_null} null values')
+
+def check_values_nan():
+    df = processing_data()
+    df_nan=df.isna().values.ravel().sum()
+    if df_nan==0:
+        print('There are not NaN values')
+    else:
+        print(f'There are {df_nan} NaN values')
+        
+ def load_data():
+    dataframe=filtered_data()
+    file_name='CargaBD/NO2_data.csv'
+    dataframe.to_csv(file_name, sep=';')
